@@ -6,7 +6,7 @@ El sensor tmp es el encargado de medir la temperatura y pasarle estos parametros
 ## Proyecto : Alarma de incendio.
 
 
-![visual](img\tinkercad.png)
+![visual](img/tinkercad.png)
 ## Funciones principales.
 
 

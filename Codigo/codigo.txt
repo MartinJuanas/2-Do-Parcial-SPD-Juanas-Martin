@@ -1,0 +1,173 @@
+//2do Parcial Practico de SPD
+//Alumno Juanas Martin Adrian
+//DNI 42778512
+//22/6/23
+//Link de gdb con el codigo de este proyecto : 
+//https://onlinegdb.com/_V4rddxRr
+
+#include <IRremote.h>
+#include <LiquidCrystal.h>
+#include <Servo.h>
+
+
+#define LED_ROJO 13
+#define LED_VERDE 12
+
+Servo servo1;
+LiquidCrystal lcd(7, 6, 5, 4, 3, 2);
+
+int IR = 11;
+int PINSERVO = 9;
+int PULSIMIN = 750;
+int PULSOMAX = 2100;
+
+
+int ledPin1 = 12;  // Pin para el LED adicional 1
+int ledPin2 = 13;  // Pin para el LED adicional 2
+
+int contadorBoton1 = 0;
+bool flagMostrarEstacion = false;
+#define Tecla_1 0xEF10BF00
+#define Tecla_2 0xEE11BF00
+float temperatura_anterior = 0 ; 
+
+bool botonIncendio = false;
+int contadorBotonIncendio = 0;
+//bool incendioDetectado = false;
+
+void setup()
+{
+  Serial.begin(9600);
+  IrReceiver.begin(IR, DISABLE_LED_FEEDBACK);
+  lcd.begin(16, 2);
+  servo1.attach(PINSERVO, PULSIMIN, PULSOMAX);
+  pinMode(13, OUTPUT);
+  pinMode(12, OUTPUT);
+}
+
+void loop()
+{
+  int lecturaSensorTemperatura = analogRead(A0);
+  float temperatura = map(lecturaSensorTemperatura, 20, 358, -40, 125);
+  Serial.println(temperatura);
+  
+
+  if (!flagMostrarEstacion) {
+    mostrarTemperatura(temperatura, temperatura_anterior);
+  }
+  
+  if (IrReceiver.decode())
+  {
+    if (IrReceiver.decodedIRData.decodedRawData == Tecla_1)
+    {
+      contadorBoton1++;
+      if (contadorBoton1 % 2 == 1) {
+        Serial.println(contadorBoton1);
+        determinarEstacion(temperatura);
+        flagMostrarEstacion = true;
+        lcd.setCursor(0, 1);
+    	lcd.print("Estacion: ");
+    	lcd.print(determinarEstacion(temperatura));
+        
+      }
+      else {
+        flagMostrarEstacion = false;
+      }
+    }
+    else if (IrReceiver.decodedIRData.decodedRawData == Tecla_2)
+    {
+      Serial.println(IrReceiver.decodedIRData.decodedRawData, HEX);
+      botonIncendio  = true;
+      contadorBotonIncendio ++;
+      if (contadorBotonIncendio != 1){
+        botonIncendio = false ;
+        contadorBotonIncendio = 0 ;
+      }
+    }
+    IrReceiver.resume();
+  }
+  
+  activarServo(temperatura,botonIncendio);
+  delay(1000);
+}
+
+void mostrarTemperatura(float temperatura, float temperatura2)
+{
+  if (temperatura != temperatura2) {
+    temperatura2 = temperatura;
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("Temp: ");
+    lcd.print(temperatura);
+    lcd.print(" C");
+  }
+}
+
+String determinarEstacion(float temperatura)
+{
+  if (temperatura >= 22.0 && temperatura <= 59.0)
+  {
+    return "Verano";
+  }
+  else if (temperatura >= 15.0 && temperatura < 22.0)
+  {
+    return "Otonio";
+  }
+  else if (temperatura >= 5.0 && temperatura < 15.0)
+  {
+    return "Primavera";
+  }
+  else if (temperatura >= -40.0 && temperatura < 5.0)
+  {
+    return "Invierno";
+  }
+  else if (temperatura > 70.0 && temperatura <= 125.0)
+  {
+    return "ALARMA";
+  }
+
+  return "";
+}
+
+void activarServo(float temperatura,bool boton)
+{
+  if (temperatura >= 60.0 && boton == false )
+  {
+    prenderServo();
+    parpadeoLedRojo();
+    digitalWrite(LED_VERDE,LOW);
+  }
+  else if (temperatura >= 60.0 && boton == true)
+  {
+    lcd.setCursor(0,1);
+    servo1.write(0);
+    digitalWrite(LED_ROJO,LOW);
+    digitalWrite(LED_VERDE,HIGH);
+    
+    lcd.print("Alarma Off");
+  }
+}
+
+void prenderServo(){
+    lcd.clear();
+    lcd.setCursor(0,0);
+    lcd.print("ALARMA ACTIVADA");
+    for (int angulo = 0; angulo <= 180; angulo++) {
+      servo1.write(angulo);  // Mueve el servomotor al ángulo actual
+      delay(15);  // Pequeña pausa para permitir que el servomotor se mueva
+    }
+    for (int angulo = 180; angulo >= 0; angulo--) {
+      servo1.write(angulo);  // Mueve el servomotor al ángulo actual
+      delay(15);  // Pequeña pausa para permitir que el servomotor se mueva
+  }
+}
+
+
+
+void parpadeoLedRojo()
+{
+  digitalWrite(LED_ROJO, HIGH);  
+  delay(500);                  
+  digitalWrite(LED_ROJO, LOW);   
+  delay(500);   
+} 
